@@ -55,8 +55,9 @@ def signsup():
         verification_code = email_service.generate_verification_code()
         code_expiry = datetime.now() + timedelta(minutes=10)
     else:
+        # For employees and admins, set code_expiry to track registration time
         verification_code = None
-        code_expiry = None
+        code_expiry = datetime.now() + timedelta(minutes=10)  # Used to calculate created_at
     
     hashed_pw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
@@ -69,13 +70,14 @@ def signsup():
             return jsonify({"success": False, "message": "Email already exists"}), 400
         
         cur.execute("""
-            INSERT INTO pending_users (username, first_name, last_name, email, password, role, verification_code, code_expiry)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO pending_users (username, first_name, last_name, email, password, role, verification_code, code_expiry, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE 
             verification_code = VALUES(verification_code),
             code_expiry = VALUES(code_expiry),
-            password = VALUES(password)
-        """, (username, first_name, last_name, email, hashed_pw, role, verification_code, code_expiry))
+            password = VALUES(password),
+            created_at = NOW()
+        """, (username, first_name, last_name, email, hashed_pw, role, verification_code, code_expiry, datetime.now()))
         mysql.connection.commit()
         cur.close()
         
@@ -274,10 +276,10 @@ def admin_get_pending_approvals():
         cur = mysql.connection.cursor()
         cur.execute(
             """
-            SELECT id, username, first_name, last_name, email, role, code_expiry
+            SELECT id, username, first_name, last_name, email, role, code_expiry, created_at
             FROM pending_users
             WHERE role = 'employee'
-            ORDER BY id DESC
+            ORDER BY created_at DESC
             """
         )
         rows = cur.fetchall()
@@ -286,10 +288,15 @@ def admin_get_pending_approvals():
         approvals = []
         for row in rows:
             code_expiry = row[6]
-            try:
-                created_at = (code_expiry - timedelta(minutes=10)) if code_expiry else datetime.now()
-            except Exception:
-                created_at = datetime.now()
+            created_at = row[7]  # Use created_at directly from database
+            
+            # If created_at is None, use code_expiry or current time
+            if created_at is None:
+                if code_expiry:
+                    created_at = code_expiry - timedelta(minutes=10)
+                else:
+                    created_at = datetime.now()
+            
             approvals.append({
                 'id': row[0],
                 'username': row[1],
@@ -297,7 +304,7 @@ def admin_get_pending_approvals():
                 'last_name': row[3],
                 'email': row[4],
                 'role': row[5],
-                'created_at': created_at
+                'created_at': created_at.isoformat() if created_at else datetime.now().isoformat()
             })
 
         return jsonify(approvals)

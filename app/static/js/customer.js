@@ -6,6 +6,22 @@ let paginationData = null;
 document.addEventListener("DOMContentLoaded", () => {
     fetchProducts(1);
     updateCartDisplay();
+    
+    // Add event listeners after DOM is ready
+    const categorySelect = document.getElementById("categorySelect");
+    const searchInput = document.getElementById("searchInput");
+    
+    if (categorySelect) {
+        categorySelect.addEventListener("change", () => {
+            fetchAllProductsForSearch();
+        });
+    }
+    
+    if (searchInput) {
+        searchInput.addEventListener("input", () => {
+            fetchAllProductsForSearch();
+        });
+    }
 });
 
 function fetchProducts(page = 1) {
@@ -50,9 +66,12 @@ function updatePaginationControls() {
         productCard.appendChild(paginationContainer);
     }
     
+    // Show pagination when not filtering
+    paginationContainer.style.display = "block";
     paginationContainer.innerHTML = "";
     
     if (!paginationData || paginationData.total_pages <= 1) {
+        paginationContainer.style.display = "none";
         return;
     }
     
@@ -130,19 +149,58 @@ function goToPage(page) {
     if (paginationData && (page < 1 || page > paginationData.total_pages)) {
         return;
     }
+    
+    // Clear search and category filters when navigating pages
+    // This ensures we're in "browse mode" not "search mode"
+    document.getElementById("searchInput").value = "";
+    document.getElementById("categorySelect").value = "All Categories";
+    
     fetchProducts(page);
     // Scroll to top of products section
     document.querySelector(".card").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-document.getElementById("categorySelect").addEventListener("change", () => {
-    fetchProducts(1); // Reset to first page on filter change
+function fetchAllProductsForSearch() {
+    // Progressive search - fetch and display results as they arrive
+    
+    // First, search current page products immediately
     applyFilters();
-});
-document.getElementById("searchInput").addEventListener("input", () => {
-    fetchProducts(1); // Reset to first page on search
-    applyFilters();
-});
+    
+    // Then fetch remaining pages in background
+    const totalPages = paginationData?.total_pages || 1;
+    
+    if (totalPages <= 1) return; // Only current page exists
+    
+    // Build full product list progressively by fetching remaining pages
+    let allProducts = [...products]; // Start with current page
+    
+    const pagePromises = [];
+    for (let page = 1; page <= totalPages; page++) {
+        if (page === currentPage) continue; // Skip current page, already have it
+        
+        pagePromises.push(
+            fetch(`/api/products?per_page=20&page=${page}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.products) {
+                        return data.products;
+                    }
+                    return [];
+                })
+        );
+    }
+    
+    // Fetch all pages and update display progressively
+    Promise.all(pagePromises).then(results => {
+        results.forEach(pageProducts => {
+            allProducts = allProducts.concat(pageProducts);
+        });
+        
+        // Update products with full list and re-apply filters
+        products = allProducts;
+        applyFilters();
+    }).catch(err => console.error("Error fetching products for search:", err));
+}
 
 function applyFilters() {
     const category = document.getElementById("categorySelect").value;
@@ -150,7 +208,8 @@ function applyFilters() {
 
     const filtered = products.filter(product => {
         const matchCategory = category === "All Categories" || product.category === category;
-        const matchSearch = product.product_name.toLowerCase().includes(searchTerm) || 
+        const matchSearch = searchTerm === "" || 
+                            product.product_name.toLowerCase().includes(searchTerm) || 
                             (product.product_id && product.product_id.toString().includes(searchTerm));
         return matchCategory && matchSearch;
     });
@@ -161,6 +220,17 @@ function applyFilters() {
 function displayProducts(products) {
     const container = document.getElementById("productContainer");
     container.innerHTML = "";
+    
+    // Check if user is actively filtering/searching
+    const category = document.getElementById("categorySelect").value;
+    const searchTerm = document.getElementById("searchInput").value.toLowerCase();
+    const isFiltering = (category !== "All Categories") || (searchTerm !== "");
+    
+    // Hide pagination only when actively filtering/searching
+    const paginationControls = document.getElementById("paginationControls");
+    if (paginationControls) {
+        paginationControls.style.display = isFiltering ? "none" : "block";
+    }
 
     if (products.length === 0) {
         container.innerHTML = `
@@ -358,128 +428,6 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     `;
 });
-
-function displayProducts(products) {
-    const container = document.getElementById("productContainer");
-    container.innerHTML = "";
-
-    if (products.length === 0) {
-        container.innerHTML = `
-            <div class="col-12 text-center py-5">
-                <i class="bi bi-search fs-1 text-muted mb-3 d-block"></i>
-                <h5 class="text-muted">No products found</h5>
-                <p class="text-muted">Try adjusting your search or filter criteria</p>
-            </div>
-        `;
-        return;
-    }
-
-    products.forEach(product => {
-        const card = document.createElement("div");
-        card.className = "product-card";
-
-        const imagePath = product.image_path || '/images/default.jpg';
-        const productName = product.product_name || 'Unknown Product';
-        const price = parseFloat(product.price) || 0;
-
-        card.innerHTML = `
-            <img src="${imagePath}" alt="${productName}" " />
-            <h3 class="product-name">${productName}</h3>
-            <div class="product-price">Rs. ${price.toFixed(2)}</div>
-            <div class="mb-2">
-                <small class="text-muted">
-                    <i class="bi bi-box-seam me-1"></i>
-                    Stock: ${product.stock_quantity || 0}
-                </small>
-            </div>
-            <button class="add-btn" onclick="addToCart(${product.product_id}, '${productName.replace(/'/g, "\\'")}', ${price})" 
-                    ${(product.stock_quantity || 0) <= 0 ? 'disabled' : ''}>
-                <i class="bi bi-cart-plus"></i>
-                ${(product.stock_quantity || 0) <= 0 ? 'Out of Stock' : 'Add to Cart'}
-            </button>
-        `;
-
-        container.appendChild(card);
-    });
-}
-
-function addToCart(product_id, name, price) {
-    const existing = cart.find(item => item.product_id === product_id);
-    if (existing) {
-        existing.quantity += 1;
-    } else {
-        cart.push({ product_id, name, price, quantity: 1 });
-    }
-    updateCartDisplay();
-    showNotification(`${name} added to cart!`, "success");
-}
-
-function removeFromCart(product_id) {
-    const item = cart.find(item => item.product_id === product_id);
-    cart = cart.filter(item => item.product_id !== product_id);
-    updateCartDisplay();
-    if (item) {
-        showNotification(`${item.name} removed from cart`, "info");
-    }
-}
-
-function clearCart() {
-    cart = [];
-    updateCartDisplay();
-    showNotification("Cart cleared", "info");
-}
-
-function updateCartDisplay() {
-    const tbody = document.getElementById("cartTableBody");
-    const paymentBtn = document.getElementById("paymentBtn");
-    tbody.innerHTML = "";
-    let total = 0;
-
-    if (cart.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="4" class="text-center text-muted py-4">
-                    <i class="bi bi-cart-x fs-1 d-block mb-2"></i>
-                    Your cart is empty
-                </td>
-            </tr>
-        `;
-        paymentBtn.disabled = true;
-        paymentBtn.classList.add('disabled');
-    } else {
-        paymentBtn.disabled = false;
-        paymentBtn.classList.remove('disabled');
-        
-        cart.forEach(item => {
-            const itemTotal = item.price * item.quantity;
-            total += itemTotal;
-
-            const row = document.createElement("tr");
-            row.innerHTML = `
-                <td>
-                    <span class="badge bg-primary rounded-pill">${item.quantity}</span>
-                </td>
-                <td>
-                    <div class="fw-medium">${item.name}</div>
-                    <small class="text-muted">Rs. ${item.price.toFixed(2)} each</small>
-                </td>
-                <td class="fw-bold text-success">Rs. ${itemTotal.toFixed(2)}</td>
-                <td>
-                    <button class="remove-item" onclick="removeFromCart(${item.product_id})" title="Remove item">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </td>
-            `;
-            tbody.appendChild(row);
-        });
-    }
-
-    // Update totals
-    document.getElementById("totalAmount").textContent = `Rs. ${total.toFixed(2)}`;
-    document.getElementById("taxAmount").textContent = "Rs. 0.00";
-    document.getElementById("discountAmount").textContent = "Rs. 0.00";
-    document.getElementById("finalTotal").textContent = `Rs. ${total.toFixed(2)}`;
-}
 
 function proceedToPayment() {
     if (cart.length === 0) {

@@ -6,6 +6,24 @@ let paginationData = null;
 document.addEventListener("DOMContentLoaded", () => {
     fetchProducts(1);
 
+    // Mobile menu toggle
+    const toggleBtn = document.querySelector('.menu-toggle');
+    const navLinks = document.querySelector('.nav-links');
+    if (toggleBtn && navLinks) {
+        toggleBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            navLinks.classList.toggle('active');
+        });
+        
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.navbar')) {
+                navLinks.classList.remove('active');
+            }
+        });
+    }
+
     
     document.getElementById("paidAmount").addEventListener("input", updateBillingSummary);
 
@@ -325,15 +343,6 @@ function newOrder() {
     clearCart();
 }
 
-document.addEventListener("DOMContentLoaded", function() {
-  const toggleBtn = document.querySelector('.menu-toggle');
-  const navLinks = document.querySelector('.nav-links');
-
-  toggleBtn.addEventListener('click', () => {
-    navLinks.classList.toggle('active');
-  });
-});
-
 function displayProducts(products) {
     const tbody = document.getElementById("productTableBody");
     tbody.innerHTML = "";
@@ -471,12 +480,3 @@ async function saveOrder() {
 function newOrder() {
     clearCart();
 }
-
-document.addEventListener("DOMContentLoaded", function() {
-  const toggleBtn = document.querySelector('.menu-toggle');
-  const navLinks = document.querySelector('.nav-links');
-
-  toggleBtn.addEventListener('click', () => {
-    navLinks.classList.toggle('active');
-  });
-});
