@@ -3,26 +3,68 @@ let products = [];
 
 async function fetchExpiryAlerts() {
     try {
+        console.log('🔄 Fetching expiry alerts...');
         const response = await fetch('/expiry_alerts');
+        
+        console.log('📡 Response status:', response.status);
+        console.log('📡 Response ok:', response.ok);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ HTTP Error:', response.status, errorText);
+            const container = document.getElementById('productsContainer');
+            if (container) {
+                container.innerHTML = `<p style="grid-column: 1/-1; text-align: center; padding: 20px; color: red;">Error ${response.status}: ${errorText}</p>`;
+            }
+            return;
+        }
+
         const data = await response.json();
+        console.log('✅ Data received:', data);
 
         if (data.error) {
-            console.error('Backend error:', data.error);
+            console.error('🚫 Backend error:', data.error);
+            const container = document.getElementById('productsContainer');
+            if (container) {
+                container.innerHTML = `<p style="grid-column: 1/-1; text-align: center; padding: 20px; color: red;">Error: ${data.error}</p>`;
+            }
+            return;
+        }
+
+        if (!Array.isArray(data)) {
+            console.error('⚠️ Data is not an array:', typeof data, data);
+            const container = document.getElementById('productsContainer');
+            if (container) {
+                container.innerHTML = '<p style="grid-column: 1/-1; text-align: center; padding: 20px; color: red;">Invalid data format</p>';
+            }
+            return;
+        }
+
+        if (data.length === 0) {
+            console.log('ℹ️ No products to display');
+            const container = document.getElementById('productsContainer');
+            if (container) {
+                container.innerHTML = '<p style="grid-column: 1/-1; text-align: center; padding: 20px;">No products found in database</p>';
+            }
             return;
         }
 
         products = data;
-        
+        console.log('✨ Products loaded successfully:', products.length);
         
         const expiredProducts = products.filter(p => p.time_to_expiry < 0);
         const expiringProducts = products.filter(p => p.time_to_expiry >= 0);
         
-        
-        const sortedProducts = [...expiredProducts, ...expiringProducts];
+        console.log('📊 Expired:', expiredProducts.length, 'Expiring:', expiringProducts.length);
         
         displayProducts(products);
     } catch (err) {
-        console.error('Fetch error:', err);
+        console.error('💥 Fetch error:', err);
+        console.error('Error details:', err.message, err.stack);
+        const container = document.getElementById('productsContainer');
+        if (container) {
+            container.innerHTML = `<p style="grid-column: 1/-1; text-align: center; padding: 20px; color: red;">Error: ${err.message}</p>`;
+        }
     }
 }
 
@@ -72,8 +114,16 @@ function displayProducts(productsToShow) {
 
 
 function filterProducts() {
-    const timeFilter = document.getElementById('timeFilter').value;
-    const searchText = document.getElementById('searchProduct').value.toLowerCase();
+    const timeFilterElement = document.getElementById('timeFilter');
+    const searchProductElement = document.getElementById('searchProduct');
+    
+    if (!timeFilterElement || !searchProductElement) {
+        console.warn('Filter elements not found');
+        return;
+    }
+    
+    const timeFilter = timeFilterElement.value;
+    const searchText = searchProductElement.value.toLowerCase();
 
     const filteredProducts = products.filter(product => {
         const daysUntilExpiry = product.time_to_expiry;
@@ -99,34 +149,60 @@ function filterProducts() {
 }
 
 
-document.getElementById('timeFilter').addEventListener('change', filterProducts);
-document.getElementById('searchProduct').addEventListener('input', filterProducts);
+// Event listeners for filters
+document.addEventListener('DOMContentLoaded', function() {
+    const timeFilter = document.getElementById('timeFilter');
+    const searchProduct = document.getElementById('searchProduct');
+    
+    if (timeFilter) {
+        timeFilter.addEventListener('change', filterProducts);
+    }
+    if (searchProduct) {
+        searchProduct.addEventListener('input', filterProducts);
+    }
+    
+    // Fetch expiry alerts on page load
+    fetchExpiryAlerts();
+});
 
-
-window.addEventListener('DOMContentLoaded', fetchExpiryAlerts);
-
-
- document.addEventListener('DOMContentLoaded', () => {
+// Sidebar toggle
+document.addEventListener('DOMContentLoaded', () => {
     const menuToggle = document.querySelector('.menu-toggle');
     const sidebar = document.querySelector('.sidebar');
+    
+    if (!menuToggle) {
+        console.warn('Menu toggle element not found');
+        return;
+    }
+    
     const overlay = document.createElement('div');
     overlay.classList.add('overlay');
     document.body.appendChild(overlay);
 
     menuToggle.addEventListener('click', () => {
-      sidebar.classList.toggle('active');
-      overlay.classList.toggle('active');
+        if (sidebar) {
+            sidebar.classList.toggle('active');
+        }
+        overlay.classList.toggle('active');
     });
 
     overlay.addEventListener('click', () => {
-      sidebar.classList.remove('active');
-      overlay.classList.remove('active');
+        if (sidebar) {
+            sidebar.classList.remove('active');
+        }
+        overlay.classList.remove('active');
     });
-  });
+});
 
+// Toggle button for sidebar collapse
 const sidebar = document.querySelector('.sidebar');
 const main = document.querySelector('.main-content');
+const toggleBtn = document.querySelector('.toggle-btn');
 
-document.querySelector('.toggle-btn').addEventListener('click', () => {
-  sidebar.classList.toggle('collapsed');
-});
+if (toggleBtn) {
+  toggleBtn.addEventListener('click', () => {
+    if (sidebar) {
+      sidebar.classList.toggle('collapsed');
+    }
+  });
+}

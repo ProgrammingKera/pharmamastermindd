@@ -28,9 +28,17 @@ function loadStoredProducts() {
 
 async function fetchProducts() {
     try {
-        const res = await fetch("/api/products");
-        const products = await res.json();
-        displayProducts(products);
+        const res = await fetch("/api/products?page=1&per_page=100");
+        const data = await res.json();
+        
+        // Handle both new paginated format and old array format
+        if (data.products && Array.isArray(data.products)) {
+            displayProducts(data.products);
+        } else if (Array.isArray(data)) {
+            displayProducts(data);
+        } else {
+            throw new Error("Unexpected data format");
+        }
     } catch (err) {
         showPopup("Error fetching products: " + err.message, true);
     }

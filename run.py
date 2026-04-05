@@ -863,23 +863,55 @@ def get_customer_ledger(customer_id):
 @app.route('/api/products', methods=['GET'])
 def get_products():
     try:
+        # Get pagination parameters from query string
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        
+        # Validate pagination parameters
+        if page < 1:
+            page = 1
+        if per_page < 1 or per_page > 100:
+            per_page = 20
+        
+        # Calculate offset
+        offset = (page - 1) * per_page
+        
         cur = mysql.connection.cursor()
+        
+        # Get total count of products
+        cur.execute("SELECT COUNT(*) FROM products WHERE stock_quantity > 0")
+        total_products = cur.fetchone()[0]
+        
+        # Get paginated products
         cur.execute("""
             SELECT product_id, product_name, brand, price, 
                 stock_quantity, category, expiry_date, image_path
             FROM products
             WHERE stock_quantity > 0
             ORDER BY product_name
-
-        """)
+            LIMIT %s OFFSET %s
+        """, (per_page, offset))
+        
         rows = cur.fetchall()
         column_names = [desc[0] for desc in cur.description]
         cur.close()
 
-        
         products = [dict(zip(column_names, row)) for row in rows]
-
-        return jsonify(products)
+        
+        # Calculate total pages
+        total_pages = (total_products + per_page - 1) // per_page
+        
+        return jsonify({
+            "products": products,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total_products,
+                "total_pages": total_pages,
+                "has_next": page < total_pages,
+                "has_prev": page > 1
+            }
+        })
     except Exception as err:
         return jsonify({"error": f"MySQL Error: {str(err)}"}), 500
 
@@ -915,7 +947,7 @@ def add_product():
             image = request.files['image']
             if image.filename != '':
                 image_filename = f"product_{new_product_id}_{image.filename}"
-                image_path = f"/images/{image_filename}"
+                image_path = f"images/{image_filename}"
                 image.save(f"images/{image_filename}")
 
                 cur.execute("""
@@ -944,7 +976,7 @@ def update_product(product_id):
             image = request.files['image']
             if image.filename != '':
                 image_filename = f"product_{product_id}_{image.filename}"
-                image_path = f"/images/{image_filename}"
+                image_path = f"images/{image_filename}"
                 image.save(f"images/{image_filename}")
         
         cur = mysql.connection.cursor()

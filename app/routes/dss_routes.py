@@ -499,26 +499,40 @@ def predict_restocks():
 
 @dss_bp.route('/expiry_alerts', methods=['GET'])
 def expiry_alerts():
+    print("\n=== EXPIRY ALERTS API CALLED ===")
     current_date = datetime.now().date()
+    thirty_days_ago = current_date - timedelta(days=30)
 
     high_demand_threshold = 50
-    low_demand_threshold = 0
 
     try:
+        print("Connecting to database...")
         conn = mysql.connection
         cursor = conn.cursor()
 
-        
+        print("Fetching products with sales data in single query...")
+        # Single query to get products with their sales data
         cursor.execute("""
-            SELECT product_id, product_name, expiry_date, stock_quantity, image_path, cost_price
-            FROM products
-            WHERE expiry_date > %s
-            ORDER BY expiry_date ASC
-        """, (current_date,))
+            SELECT 
+                p.product_id,
+                p.product_name,
+                p.expiry_date,
+                p.stock_quantity,
+                p.image_path,
+                COALESCE(SUM(oi.quantity), 0) AS total_sales
+            FROM products p
+            LEFT JOIN order_items oi ON p.product_id = oi.product_id
+            LEFT JOIN orders o ON oi.order_id = o.order_id AND o.order_date >= %s
+            WHERE p.expiry_date > %s
+            GROUP BY p.product_id, p.product_name, p.expiry_date, p.stock_quantity, p.image_path
+            ORDER BY p.expiry_date ASC
+        """, (thirty_days_ago, current_date))
         
         rows = cursor.fetchall()
         columns = [desc[0] for desc in cursor.description]
         products = [dict(zip(columns, row)) for row in rows]
+
+        print(f"Found {len(products)} products")
 
         result = []
 
@@ -528,8 +542,9 @@ def expiry_alerts():
             expiry_date = row['expiry_date']
             stock_quantity = row['stock_quantity']
             image_path = row['image_path']
+            total_sales = row['total_sales'] or 0
 
-            
+            # Image URL handling
             if image_path:
                 if image_path.lower().startswith('http'):  
                     image_url = image_path  
@@ -540,6 +555,7 @@ def expiry_alerts():
             else:
                 image_url = None
 
+            # Date handling
             if isinstance(expiry_date, datetime):
                 expiry_datetime = expiry_date
             else:
@@ -547,27 +563,16 @@ def expiry_alerts():
 
             time_to_expiry = (expiry_datetime - datetime.now()).days
 
-            
-            cursor.execute("""
-                SELECT SUM(oi.quantity) AS total_sales
-                FROM order_items oi
-                JOIN orders o ON oi.order_id = o.order_id
-                WHERE oi.product_id = %s
-                AND o.order_date >= %s
-            """, (product_id, current_date - timedelta(days=30)))
-            
-            sales_data = cursor.fetchone()
-            total_sales = sales_data[0] if sales_data[0] else 0
-
+            # Demand calculation
             demand = "High" if total_sales >= high_demand_threshold else "Low"
 
             total_sales = float(total_sales)
             time_to_expiry = float(time_to_expiry)
 
-            
+            # Priority score
             priority_score = (total_sales * 1) + (time_to_expiry * 0.5)
 
-            
+            # Expiry alert
             if time_to_expiry <= 7.0:
                 expiry_alert = 'Urgent (Within 1 Week)'
             elif time_to_expiry <= 30.0:
@@ -590,9 +595,13 @@ def expiry_alerts():
         result.sort(key=lambda x: x['priority_score'], reverse=True)
 
         cursor.close()
+        print(f"✅ Returning {len(result)} products")
         return jsonify(result)
 
     except Exception as e:
+        print(f"❌ ERROR in expiry_alerts: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": f"Error: {str(e)}"}), 500
 
 

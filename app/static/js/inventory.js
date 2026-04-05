@@ -1,10 +1,12 @@
 document.addEventListener("DOMContentLoaded", () => {
     console.log("DOM Loaded, Fetching Products...");
-    fetchProducts();
+    fetchProducts(1);
     setupEventListeners();
 });
 
 let products = [];
+let currentPage = 1;
+let paginationData = null;
 
 function setupEventListeners() {
    
@@ -22,8 +24,9 @@ function setupEventListeners() {
     document.getElementById('addProductForm').addEventListener('submit', handleFormSubmit);
 }
 
-function fetchProducts() {
-    fetch("/api/products")
+function fetchProducts(page = 1) {
+    const perPage = 20; // Products per page for inventory
+    fetch(`/api/products?page=${page}&per_page=${perPage}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
@@ -32,8 +35,20 @@ function fetchProducts() {
         })
         .then(data => {
             console.log("Fetched Products:", data);
-            products = data;
-            renderProducts(data);
+            
+            // Handle both new paginated format and old array format
+            if (data.products && Array.isArray(data.products)) {
+                products = data.products;
+                paginationData = data.pagination;
+                currentPage = page;
+                renderProducts(data.products);
+                updateInventoryPaginationControls();
+            } else if (Array.isArray(data)) {
+                products = data;
+                renderProducts(data);
+            } else {
+                throw new Error("Unexpected data format");
+            }
         })
         .catch(error => {
             console.error("Error fetching products:", error);
@@ -91,6 +106,107 @@ function renderProducts(productsToRender) {
     });
 
     console.log("Products Rendered!");
+}
+
+function updateInventoryPaginationControls() {
+    let paginationContainer = document.getElementById("inventoryPaginationControls");
+    
+    if (!paginationContainer) {
+        // Create pagination container if it doesn't exist
+        const tableContainer = document.querySelector(".table-container");
+        paginationContainer = document.createElement("div");
+        paginationContainer.id = "inventoryPaginationControls";
+        paginationContainer.style.marginTop = "20px";
+        paginationContainer.style.display = "flex";
+        paginationContainer.style.justifyContent = "center";
+        tableContainer.parentElement.appendChild(paginationContainer);
+    }
+    
+    paginationContainer.innerHTML = "";
+    
+    if (!paginationData || paginationData.total_pages <= 1) {
+        return;
+    }
+    
+    // Create pagination nav
+    const nav = document.createElement("nav");
+    nav.setAttribute("aria-label", "Page navigation");
+    
+    const ul = document.createElement("ul");
+    ul.style.listStyle = "none";
+    ul.style.display = "flex";
+    ul.style.gap = "5px";
+    ul.style.padding = "0";
+    ul.style.alignItems = "center";
+    
+    // Previous button
+    const prevLi = document.createElement("li");
+    prevLi.innerHTML = `
+        <button onclick="inventoryGoToPage(${currentPage - 1})" 
+                style="padding: 8px 12px; border: 1px solid #ddd; background: ${!paginationData.has_prev ? '#f0f0f0' : 'white'}; cursor: ${!paginationData.has_prev ? 'not-allowed' : 'pointer'}; border-radius: 4px;"
+                ${!paginationData.has_prev ? 'disabled' : ''}>
+            <i class="fas fa-chevron-left"></i> Prev
+        </button>
+    `;
+    ul.appendChild(prevLi);
+    
+    // Page numbers
+    const startPage = Math.max(1, currentPage - 2);
+    const endPage = Math.min(paginationData.total_pages, currentPage + 2);
+    
+    if (startPage > 1) {
+        const firstLi = document.createElement("li");
+        firstLi.innerHTML = `<button onclick="inventoryGoToPage(1)" style="padding: 8px 12px; border: 1px solid #ddd; background: white; cursor: pointer; border-radius: 4px;">1</button>`;
+        ul.appendChild(firstLi);
+        
+        if (startPage > 2) {
+            const dotsLi = document.createElement("li");
+            dotsLi.innerHTML = `<span style="padding: 8px 4px;">...</span>`;
+            ul.appendChild(dotsLi);
+        }
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        const li = document.createElement("li");
+        const isActive = i === currentPage;
+        li.innerHTML = `<button onclick="inventoryGoToPage(${i})" style="padding: 8px 12px; border: 1px solid ${isActive ? '#138BA8' : '#ddd'}; background: ${isActive ? '#138BA8' : 'white'}; color: ${isActive ? 'white' : 'black'}; cursor: pointer; border-radius: 4px; font-weight: ${isActive ? 'bold' : 'normal'};">${i}</button>`;
+        ul.appendChild(li);
+    }
+    
+    if (endPage < paginationData.total_pages) {
+        if (endPage < paginationData.total_pages - 1) {
+            const dotsLi = document.createElement("li");
+            dotsLi.innerHTML = `<span style="padding: 8px 4px;">...</span>`;
+            ul.appendChild(dotsLi);
+        }
+        
+        const lastLi = document.createElement("li");
+        lastLi.innerHTML = `<button onclick="inventoryGoToPage(${paginationData.total_pages})" style="padding: 8px 12px; border: 1px solid #ddd; background: white; cursor: pointer; border-radius: 4px;">${paginationData.total_pages}</button>`;
+        ul.appendChild(lastLi);
+    }
+    
+    // Next button
+    const nextLi = document.createElement("li");
+    nextLi.innerHTML = `
+        <button onclick="inventoryGoToPage(${currentPage + 1})" 
+                style="padding: 8px 12px; border: 1px solid #ddd; background: ${!paginationData.has_next ? '#f0f0f0' : 'white'}; cursor: ${!paginationData.has_next ? 'not-allowed' : 'pointer'}; border-radius: 4px;"
+                ${!paginationData.has_next ? 'disabled' : ''}>
+            Next <i class="fas fa-chevron-right"></i>
+        </button>
+    `;
+    ul.appendChild(nextLi);
+    
+    nav.appendChild(ul);
+    paginationContainer.appendChild(nav);
+}
+
+function inventoryGoToPage(page) {
+    if (paginationData && (page < 1 || page > paginationData.total_pages)) {
+        return;
+    }
+    fetchProducts(page);
+    // Scroll to top
+    document.querySelector(".table-container").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function filterProducts() {
