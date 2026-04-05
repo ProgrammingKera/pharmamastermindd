@@ -27,10 +27,11 @@ CORS(app, supports_credentials=True)
 
 stripe.api_key = 'sk_test_51RvFpAFnsPUQVISnTuNYVEFQlPbjSU8HBH3sxC5nFLLIBnnuJxs9cggYNENqUKD9PWdD4jPihDlkHeMTJD5l7PxF00Arox9DUH'  
 
-app.config['MYSQL_USER'] = 'ezyro_41583006'
-app.config['MYSQL_PASSWORD'] = 'm98fU@La3U#DZUv'
-app.config['MYSQL_DB'] = 'ezyro_41583006_pharmamastermind'
-app.config['MYSQL_HOST'] = 'sql208.ezyro.com'
+app.config['MYSQL_HOST'] = 'junction.proxy.rlwy.net'
+app.config['MYSQL_PORT'] = 55275
+app.config['MYSQL_USER'] = 'root'
+app.config['MYSQL_PASSWORD'] = 'SGyckJNxStTohqGxHjQIyELVqGIbDaPp'
+app.config['MYSQL_DB'] = 'railway'
 
 mysql = MySQL(app)
 
@@ -914,8 +915,8 @@ def add_product():
             image = request.files['image']
             if image.filename != '':
                 image_filename = f"product_{new_product_id}_{image.filename}"
-                image_path = f"/pictures/{image_filename}"
-                image.save(f"pictures/{image_filename}")
+                image_path = f"/images/{image_filename}"
+                image.save(f"images/{image_filename}")
 
                 cur.execute("""
                     UPDATE products 
@@ -943,8 +944,8 @@ def update_product(product_id):
             image = request.files['image']
             if image.filename != '':
                 image_filename = f"product_{product_id}_{image.filename}"
-                image_path = f"/pictures/{image_filename}"
-                image.save(f"pictures/{image_filename}")
+                image_path = f"/images/{image_filename}"
+                image.save(f"images/{image_filename}")
         
         cur = mysql.connection.cursor()
         
@@ -1207,6 +1208,29 @@ def create_payment_intent():
         currency = data.get('currency', 'pkr')
         cart = data.get('cart', [])
 
+        print(f"\n=== PAYMENT INTENT DEBUG ===")
+        print(f"Received data: {data}")
+        print(f"Amount: {amount}, Type: {type(amount)}")
+        print(f"Currency: {currency}")
+        
+        # Validate amount
+        if not amount:
+            print("ERROR: No amount provided")
+            return jsonify({'error': 'Amount is required'}), 400
+        
+        # Convert amount to integer (Stripe requires integer cents)
+        try:
+            amount = int(float(amount))
+        except (ValueError, TypeError) as e:
+            print(f"ERROR: Invalid amount format: {e}")
+            return jsonify({'error': f'Invalid amount: {str(e)}'}), 400
+        
+        if amount <= 0:
+            print(f"ERROR: Amount must be positive: {amount}")
+            return jsonify({'error': 'Amount must be greater than 0'}), 400
+
+        print(f"Creating intent with amount={amount}, currency={currency}")
+        
         intent = stripe.PaymentIntent.create(
             amount=amount,
             currency=currency,
@@ -1216,12 +1240,22 @@ def create_payment_intent():
             }
         )
 
+        print(f"Intent created successfully: {intent.id}")
         return jsonify({
             'client_secret': intent.client_secret,
             'payment_intent_id': intent.id
         })
 
+    except stripe.error.InvalidRequestError as e:
+        print(f"ERROR - Stripe InvalidRequestError: {e}")
+        return jsonify({'error': f'Invalid request: {str(e)}'}), 400
+    except stripe.error.AuthenticationError as e:
+        print(f"ERROR - Stripe AuthenticationError: {e}")
+        return jsonify({'error': 'Stripe API key invalid'}), 401
     except Exception as e:
+        print(f"ERROR - Unexpected error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 

@@ -61,7 +61,7 @@ function renderProducts(productsToRender) {
             row.style.backgroundColor = '';
         });
 
-        const imagePath = product.image_path ? product.image_path : '/pictures/default.jpg';
+        const imagePath = product.image_path ? product.image_path : '/images/default.jpg';
 
         row.innerHTML = `
             <td><img src="${imagePath}" alt="${product.product_name}" class="product-image" ></td>

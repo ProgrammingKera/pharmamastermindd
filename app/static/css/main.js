@@ -84,7 +84,16 @@ function initializePaymentForm() {
                 })
             });
 
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || 'Failed to create payment intent');
+            }
+
             const { client_secret, payment_intent_id } = await res.json();
+
+            if (!client_secret) {
+                throw new Error('No client secret received from server');
+            }
 
             const { error, paymentIntent } = await stripe.confirmCardPayment(client_secret, {
                 payment_method: {

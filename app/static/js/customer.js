@@ -61,7 +61,7 @@ function displayProducts(products) {
         const card = document.createElement("div");
         card.className = "product-card";
 
-        const imagePath = product.image_path || '/pictures/default.jpg';
+        const imagePath = product.image_path || '/images/default.jpg';
         const productName = product.product_name || 'Unknown Product';
         const price = parseFloat(product.price) || 0;
 

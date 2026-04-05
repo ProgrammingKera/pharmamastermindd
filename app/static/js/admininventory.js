@@ -19,7 +19,7 @@ function displayInventory(inventory) {
         const card = document.createElement('div');
         card.className = 'product-card';
         card.innerHTML = `
-            <img src="${item.image_path || '/pictures/default.jpg'}" alt="${item.product_name}" class="product-image">
+            <img src="${item.image_path || '/images/default.jpg'}" alt="${item.product_name}" class="product-image">
             <div class="product-info">
                 <div class="product-details">
                     <h3>${item.product_name}</h3>
@@ -42,7 +42,7 @@ function showProductDetails(product) {
 
     modalBody.innerHTML = `
         <div class="product-detail-header">
-            <img src="${product.image_path || '/pictures/default.jpg'}" alt="${product.product_name}" class="product-detail-image">
+            <img src="${product.image_path || '/images/default.jpg'}" alt="${product.product_name}" class="product-detail-image">
             <div class="product-detail-info">
                 <h2>${product.product_name}</h2>
                 <div class="product-detail-meta">

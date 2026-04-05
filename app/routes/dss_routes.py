@@ -533,10 +533,10 @@ def expiry_alerts():
             if image_path:
                 if image_path.lower().startswith('http'):  
                     image_url = image_path  
-                elif image_path.startswith('/pictures/'):
+                elif image_path.startswith('/images/'):
                     image_url = image_path 
                 else:
-                    image_url = f"/pictures/{image_path}"  
+                    image_url = f"/images/{image_path}"  
             else:
                 image_url = None
 

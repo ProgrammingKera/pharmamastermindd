@@ -155,8 +155,8 @@ def send_css(filename):
 def send_js(filename):
     return send_from_directory('app/static/js', filename)
 
-@routes.route('/pictures/<path:filename>')
-def send_pictures(filename):
+@routes.route('/images/<path:filename>')
+def send_images(filename):
     return send_from_directory('app/static/images', filename)
 
 @routes.route('/<filename>.js')
@@ -167,7 +167,7 @@ def serve_js_file(filename):
 def serve_css_file(filename):
     return send_from_directory('app/static/css', f'{filename}.css')
 
-@routes.route('/pictures/pos/<path:filename>')
+@routes.route('/images/pos/<path:filename>')
 def serve_images(filename):
     return send_from_directory('pos/Picture', filename)
 
