@@ -11,7 +11,6 @@ from MySQLdb.cursors import DictCursor
 from fpdf import FPDF
 import os
 import stripe
-import uuid
 from app.services.email_service import EmailService
 from app.routes.dss_routes import init_dss_routes
 
