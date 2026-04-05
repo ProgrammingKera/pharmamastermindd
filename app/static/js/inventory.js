@@ -23,7 +23,7 @@ function setupEventListeners() {
 }
 
 function fetchProducts() {
-    fetch("http://127.0.0.1:5000/api/products")
+    fetch("/api/products")
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);

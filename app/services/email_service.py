@@ -62,7 +62,7 @@ class EmailService:
                         <p>This code will expire in 10 minutes for security reasons.</p>
                         <p>If you didn't create an account with us, please ignore this email.</p>
                         
-                        <a href="http://127.0.0.1:5000/verification" class="btn">Verify Now</a>
+                        <a href="/verification" class="btn">Verify Now</a>
                     </div>
                     <div class="footer">
                         <p>© 2024 PharmaMastermind. All rights reserved.</p>
@@ -90,7 +90,7 @@ class EmailService:
     def send_password_reset_email(self, to_email, user_name, reset_token):
         """Send password reset email"""
         try:
-            reset_link = f"http://127.0.0.1:5000/reset-password?token={reset_token}"
+            reset_link = f"/reset-password?token={reset_token}"
             
             msg = MIMEMultipart()
             msg['From'] = self.email
