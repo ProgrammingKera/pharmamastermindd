@@ -1,17 +1,17 @@
 import smtplib
 import random
 import string
+import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 
 class EmailService:
     def __init__(self):
-        
-        self.smtp_server = "smtp.gmail.com"
-        self.smtp_port = 587
-        self.email = "iqraraza280@gmail.com"  
-        self.password = "gjfu klfb ftip piil"  
+        self.smtp_server = os.getenv('MAIL_SERVER')
+        self.smtp_port = int(os.getenv('MAIL_PORT'))
+        self.email = os.getenv('MAIL_USERNAME')
+        self.password = os.getenv('MAIL_PASSWORD')  
         
     def generate_verification_code(self):
         """Generate a 6-digit verification code"""

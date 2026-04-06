@@ -10,9 +10,13 @@ from flask_cors import CORS
 from MySQLdb.cursors import DictCursor
 from fpdf import FPDF
 import os
+from dotenv import load_dotenv
 import stripe
 from app.services.email_service import EmailService
 from app.routes.dss_routes import init_dss_routes
+
+# Load environment variables
+load_dotenv()
 
 
 app = Flask(__name__, template_folder='app/templates')
