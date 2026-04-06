@@ -8,10 +8,10 @@ from datetime import datetime, timedelta
 
 class EmailService:
     def __init__(self):
-        self.smtp_server = os.getenv('MAIL_SERVER')
-        self.smtp_port = int(os.getenv('MAIL_PORT'))
-        self.email = os.getenv('MAIL_USERNAME')
-        self.password = os.getenv('MAIL_PASSWORD')  
+        self.smtp_server = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+        self.smtp_port = int(os.getenv('MAIL_PORT', '587'))
+        self.email = os.getenv('MAIL_USERNAME', 'iqraraza280@gmail.com')
+        self.password = os.getenv('MAIL_PASSWORD', 'gjfu klfb ftip piil')  
         
     def generate_verification_code(self):
         """Generate a 6-digit verification code"""
