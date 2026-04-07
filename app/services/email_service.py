@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 class EmailService:
     def __init__(self):
         self.smtp_server = os.getenv('MAIL_SERVER')
-        self.smtp_port = int(os.getenv('MAIL_PORT', '587'))
+        self.smtp_port = int(os.getenv('MAIL_PORT'))
         self.email = os.getenv('MAIL_USERNAME')
         self.password = os.getenv('MAIL_PASSWORD')  
         

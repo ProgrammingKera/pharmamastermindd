@@ -16,3 +16,4 @@ pygsp==0.5
 ahpy==1.2
 Pillow==10.0.0
 pyDecision
+gunicorn==20.1.0
